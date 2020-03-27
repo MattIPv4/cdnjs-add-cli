@@ -7,10 +7,16 @@ const download = require('download-package-tarball');
 const glob = require('glob').sync;
 const chalk = require('chalk');
 
+/**
+ * Ask the user a question via console and wait for the response
+ *
+ * @param {String} question The question to ask the user.
+ * @returns {Promise<String>} The response the user gives.
+ */
 const input = question => new Promise(resolve => {
     const readlineInterface = readline.createInterface({
         input: process.stdin,
-        output: process.stdout
+        output: process.stdout,
     });
     readlineInterface.question(question, resp => {
         resolve(resp);
@@ -18,6 +24,14 @@ const input = question => new Promise(resolve => {
     });
 });
 
+/**
+ * Allows the user to explore the directories and files within the given path
+ * Asks for a directory inout and lists files in that directory
+ * Will recurse until a blank input is given by the user
+ *
+ * @param {String} path The base path to explore from
+ * @returns {Promise<void>}
+ */
 const explore = async path => {
     const pathInput = await input(chalk.magenta.italic('\nPath to explore in package (blank to end): '));
     if (pathInput) {
@@ -34,17 +48,21 @@ const explore = async path => {
     }
 };
 
-const doGlobExplore = (globInput, path) => {
-    const [basePath, globPattern] = globInput.split(' ', 2);
-    return glob(globPattern, { cwd: join(path, basePath), nodir: true }).join('\t');
-};
-
+/**
+ * Allows the user to test basePath and globPattern combinations within the given path
+ * Will recurse until a blank input is given by the user
+ *
+ * @param {String} path The base path to explore from
+ * @returns {Promise<void>}
+ */
 const globExplore = async path => {
     const globInput = await input(chalk.magenta.italic('\nGlob to test in package [<basePath> <globPattern>] (blank to end): '));
     if (globInput) {
         // List files
         try {
-            console.log(doGlobExplore(globInput, path));
+            const [basePath, globPattern] = globInput.split(' ', 2);
+            const files = glob(globPattern, { cwd: join(path, basePath), nodir: true });
+            console.log(files.join('\t'));
         } catch (e) {
             console.error(chalk.red(e.message));
         }
@@ -54,6 +72,23 @@ const globExplore = async path => {
     }
 };
 
+/**
+ * @typedef {Object} fileMapItem
+ * @property {String} basePath The initial path that all file patterns in this map start from
+ * @property {Array<String>} files The list of file patterns to search for (globs)
+ */
+
+/**
+ * @typedef {Array<fileMapItem>} fileMap
+ */
+
+/**
+ * Generates an array of all files that a given fileMap will match in the given path
+ *
+ * @param {String} path The base path to run the fileMap in
+ * @param {fileMap} fileMap The list of file map items to run
+ * @returns {Array<string>} All file paths matched by the fileMap in the path
+ */
 const allFileMapFiles = (path, fileMap) => {
     const files = [];
     for (const map of fileMap) {
@@ -69,6 +104,12 @@ const allFileMapFiles = (path, fileMap) => {
 
 const main = async () => {
     const [, , rawName] = process.argv;
+
+    // Validate
+    if (!rawName) {
+        console.error(chalk.red('Usage: node index.js <npmPackageName>'));
+        return;
+    }
 
     // Get the package from NPM
     const rawData = await fetch(`https://registry.npmjs.com/${rawName}`);
