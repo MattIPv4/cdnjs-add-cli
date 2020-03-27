@@ -1,9 +1,11 @@
-const fetch = require('node-fetch');
-const download = require('download-package-tarball');
 const { join, resolve } = require('path');
 const fs = require('fs').promises;
 const readline = require('readline');
+
+const fetch = require('node-fetch');
+const download = require('download-package-tarball');
 const glob = require('glob').sync;
+const chalk = require('chalk');
 
 const input = question => new Promise(resolve => {
     const readlineInterface = readline.createInterface({
@@ -17,14 +19,14 @@ const input = question => new Promise(resolve => {
 });
 
 const explore = async path => {
-    const pathInput = await input('\nPath to explore in package (blank to end): ');
+    const pathInput = await input(chalk.magenta.italic('\nPath to explore in package (blank to end): '));
     if (pathInput) {
         // List files
         try {
             const files = await fs.readdir(join(path, pathInput));
             console.log(files.join('\t'));
         } catch (e) {
-            console.error(e.message);
+            console.error(chalk.red(e.message));
         }
 
         // Recurse
@@ -38,13 +40,13 @@ const doGlobExplore = (globInput, path) => {
 };
 
 const globExplore = async path => {
-    const globInput = await input('\nGlob to test in package [<basePath> <globPattern>] (blank to end): ');
+    const globInput = await input(chalk.magenta.italic('\nGlob to test in package [<basePath> <globPattern>] (blank to end): '));
     if (globInput) {
         // List files
         try {
             console.log(doGlobExplore(globInput, path));
         } catch (e) {
-            console.error(e.message);
+            console.error(chalk.red(e.message));
         }
 
         // Recurse
@@ -66,7 +68,7 @@ const allFileMapFiles = (path, fileMap) => {
 };
 
 const main = async () => {
-    const [,,rawName] = process.argv;
+    const [, , rawName] = process.argv;
 
     // Get the package from NPM
     const rawData = await fetch(`https://registry.npmjs.com/${rawName}`);
@@ -74,7 +76,7 @@ const main = async () => {
 
     // Error if NPM errored
     if (jsonData.error) {
-        console.error(jsonData.error);
+        console.error(chalk.red(jsonData.error));
         return;
     }
 
@@ -94,7 +96,7 @@ const main = async () => {
 
     // Error if NPM errored
     if (jsonVersionData.error) {
-        console.error(jsonVersionData.error);
+        console.error(chalk.red(jsonVersionData.error));
         return;
     }
 
@@ -102,7 +104,7 @@ const main = async () => {
     console.log(`Located ${jsonData.name}@${jsonData['dist-tags'].latest}...`);
 
     // Get the name to use in cdnjs (might not match package name)
-    cdnjsData.name = (await input(`\nName to use for library (blank for ${jsonData.name}): `)).trim() || jsonData.name;
+    cdnjsData.name = (await input(chalk.cyan.bold(`\nName to use for library (blank for ${jsonData.name}): `))).trim() || jsonData.name;
 
     // Download tarball
     const tarPath = join(__dirname, 'temp', jsonData.name, jsonData['dist-tags'].latest);
@@ -122,42 +124,42 @@ const main = async () => {
 
     // Get final auto-update
     const fileMap = [];
-    console.log('\nFile map(s) to use for auto-updating library...');
+    console.log(chalk.cyan.bold('\nFile map(s) to use for auto-updating library...'));
     while (true) {
-        const basePath = await input('\nBase path to use in file map (blank to end): ');
+        const basePath = await input(chalk.cyan.bold('\nBase path to use in file map (blank to end): '));
 
         // If no input, exit if safe
         if (!basePath) {
             if (!fileMap.length) {
-                console.error('At least one file map is required for a library to auto-update');
+                console.error(chalk.red('At least one file map is required for a library to auto-update'));
             } else {
                 break;
             }
-        }
+        } else {
+            // Get globs for this path
+            const patterns = [];
+            while (true) {
+                const globInput = await input(chalk.cyan.bold(`\nGlob pattern to get from base path ${basePath} (blank to end): `));
 
-        // Get globs for this path
-        const patterns = [];
-        while (true) {
-            const globInput = await input(`\nGlob pattern to get from base path ${basePath} (blank to end): `);
-
-            // If no input, exit if safe
-            if (!globInput) {
-                if (!patterns.length) {
-                    console.error('At least one glob pattern is required for a base path in the file map');
+                // If no input, exit if safe
+                if (!globInput) {
+                    if (!patterns.length) {
+                        console.error(chalk.red('At least one glob pattern is required for a base path in the file map'));
+                    } else {
+                        break;
+                    }
                 } else {
-                    break;
+                    // Store
+                    patterns.push(globInput);
                 }
             }
 
             // Store
-            patterns.push(globInput);
+            fileMap.push({
+                basePath: resolve(basePath) === resolve(__dirname) ? '' : basePath,
+                files: patterns,
+            });
         }
-
-        // Store
-        fileMap.push({
-            basePath: resolve(basePath) === resolve(__dirname) ? '' : basePath,
-            files: patterns,
-        });
     }
 
     // Store the auto-update config
@@ -167,14 +169,14 @@ const main = async () => {
     // Get the default filename
     const allFiles = allFileMapFiles(join(tarPath, jsonData.name), fileMap);
     console.log(`\nFiles from file map:\n${allFiles.join('\t')}`);
-    const filename = await input(`\nDefault file to highlight for usage (blank to skip): `);
+    const filename = await input(chalk.cyan.bold(`\nDefault file to highlight for usage (blank to skip): `));
     if (filename) {
         cdnjsData.filename = filename;
     }
 
     // Done
-    console.log(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`);
-    console.log(`${JSON.stringify(cdnjsData, null, 2)}`);
+    console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
+    console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
 };
 
 main();
