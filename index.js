@@ -6,6 +6,9 @@ const fetch = require('node-fetch');
 const download = require('download-package-tarball');
 const glob = require('glob').sync;
 const chalk = require('chalk');
+const config = require('./config');
+const { Octokit } = require('@octokit/rest');
+const octokit = new (Octokit.plugin(require('octokit-create-pull-request')))({ auth: config.githubToken });
 
 /**
  * Ask the user a question via console and wait for the response
@@ -100,6 +103,31 @@ const allFileMapFiles = (path, fileMap) => {
         }
     }
     return files;
+};
+
+/**
+ * Creates an automatic PR for the cdnjs repo to add the new library
+ *
+ * @param {Object} data The library data for cdnjs
+ * @returns {Promise<Object>} The response from GitHub (PR or error)
+ */
+const createPR = async data => {
+    const name = `Add ${data.name} via single package.json w/ npm auto-update`;
+
+    const files = {};
+    files[`ajax/libs/${data.name}/package.json`] = `${JSON.stringify(data, null, 2)}\n`;
+
+    return await octokit.createPullRequest({
+        owner: config.targetRepoOwner,
+        repo: config.targetRepoName,
+        title: name,
+        body: `Adding ${data.name} using npm auto-update from NPM package ${data.npmName}.`,
+        head: `add-${data.name}`,
+        changes: {
+            files,
+            commit: name
+        }
+    });
 };
 
 const main = async () => {
@@ -220,8 +248,18 @@ const main = async () => {
     await fs.rmdir(tarPath, { recursive: true });
 
     // Done
-    console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
-    console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
+    try {
+        console.log('\n\nAttempting to automatically create PR...');
+        const pr = await createPR(cdnjsData);
+        console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
+    } catch (e) {
+        console.error(chalk.red(`\n\nFailed to create automatic PR`));
+        console.error(e);
+        console.error(e.message);
+        console.error(e.status);
+        console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
+        console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
+    }
 };
 
 main();
