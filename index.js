@@ -33,7 +33,7 @@ const input = question => new Promise(resolve => {
  * @returns {Promise<void>}
  */
 const explore = async path => {
-    const pathInput = await input(chalk.magenta.italic('\nPath to explore in package (blank to end): '));
+    const pathInput = await input(chalk.magenta.italic('Path to explore in package (blank to end): '));
     if (pathInput) {
         // List files
         try {
@@ -56,7 +56,7 @@ const explore = async path => {
  * @returns {Promise<void>}
  */
 const globExplore = async path => {
-    const globInput = await input(chalk.magenta.italic('\nGlob to test in package [<basePath> <globPattern>] (blank to end): '));
+    const globInput = await input(chalk.magenta.italic('Glob to test in package [<basePath> <globPattern>] (blank to end): '));
     if (globInput) {
         // List files
         try {
@@ -107,12 +107,19 @@ const main = async () => {
 
     // Validate
     if (!rawName) {
-        console.error(chalk.red('Usage: node index.js <npmPackageName>'));
+        console.error(chalk.red('Usage: node index.js <cdnjsLibraryName>'));
         return;
     }
 
+    // Build the base package
+    const cdnjsData = {};
+    cdnjsData.name = rawName;
+
+    // Get the NPM package name to use
+    const npmName = (await input(chalk.cyan.bold(`NPM package name (blank for ${rawName}): `))).trim() || rawName;
+
     // Get the package from NPM
-    const rawData = await fetch(`https://registry.npmjs.com/${rawName}`);
+    const rawData = await fetch(`https://registry.npmjs.com/${npmName}`);
     const jsonData = await rawData.json();
 
     // Error if NPM errored
@@ -121,9 +128,6 @@ const main = async () => {
         return;
     }
 
-    // Build the base package
-    const cdnjsData = {};
-    cdnjsData.name = jsonData.name;
     cdnjsData.description = jsonData.description || '';
     cdnjsData.keywords = jsonData.keywords || [];
     cdnjsData.author = jsonData.author || '';
@@ -144,9 +148,6 @@ const main = async () => {
     // Ack
     console.log(`Located ${jsonData.name}@${jsonData['dist-tags'].latest}...`);
 
-    // Get the name to use in cdnjs (might not match package name)
-    cdnjsData.name = (await input(chalk.cyan.bold(`\nName to use for library (blank for ${jsonData.name}): `))).trim() || jsonData.name;
-
     // Download tarball
     const tarPath = join(__dirname, 'temp', jsonData.name, jsonData['dist-tags'].latest);
     await download({
@@ -155,7 +156,7 @@ const main = async () => {
     });
 
     // Ack
-    console.log(`\nDownloaded ${jsonData.name}@${jsonData['dist-tags'].latest}...`);
+    console.log(`Downloaded ${jsonData.name}@${jsonData['dist-tags'].latest}...\n`);
 
     // Allow the user to explore
     await explore(join(tarPath, jsonData.name));
@@ -167,7 +168,7 @@ const main = async () => {
     const fileMap = [];
     console.log(chalk.cyan.bold('\nFile map(s) to use for auto-updating library...'));
     while (true) {
-        const basePath = await input(chalk.cyan.bold('\nBase path to use in file map (blank to end): '));
+        const basePath = await input(chalk.cyan.bold('Base path to use in file map (blank to end): '));
 
         // If no input, exit if safe
         if (!basePath) {
@@ -180,7 +181,7 @@ const main = async () => {
             // Get globs for this path
             const patterns = [];
             while (true) {
-                const globInput = await input(chalk.cyan.bold(`\nGlob pattern to get from base path ${basePath} (blank to end): `));
+                const globInput = await input(chalk.cyan.bold(`Glob pattern to get from base path ${basePath} (blank to end): `));
 
                 // If no input, exit if safe
                 if (!globInput) {
@@ -209,8 +210,8 @@ const main = async () => {
 
     // Get the default filename
     const allFiles = allFileMapFiles(join(tarPath, jsonData.name), fileMap);
-    console.log(`\nFiles from file map:\n${allFiles.join('\t')}`);
-    const filename = await input(chalk.cyan.bold(`\nDefault file to highlight for usage (blank to skip): `));
+    console.log(`\nFiles matching file map in ${jsonData['dist-tags'].latest}:\n${allFiles.join('\t')}`);
+    const filename = await input(chalk.cyan.bold(`Default file to highlight for usage (blank to skip): `));
     if (filename) {
         cdnjsData.filename = filename;
     }
