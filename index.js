@@ -216,6 +216,9 @@ const main = async () => {
         cdnjsData.filename = filename;
     }
 
+    // Cleanup
+    await fs.rmdir(tarPath, { recursive: true });
+
     // Done
     console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
     console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
