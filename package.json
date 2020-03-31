@@ -3,16 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@octokit/rest": "^17.1.4",
     "chalk": "^3.0.0",
-    "download-package-tarball": "^1.0.7",
+    "download-tarball": "^2.0.0",
+    "git-url-parse": "^11.1.2",
     "glob": "^7.1.6",
     "node-fetch": "^2.6.0",
     "octokit-create-pull-request": "^1.4.2"
