@@ -272,7 +272,7 @@ const npm = async cdnjsData => {
     cdnjsData.npmFileMap = await exploreAndGlob(join(tarPath, jsonData.name));
 
     // Get the default filename
-    const defaultFile = chooseDefault(join(tarPath, jsonData.name), cdnjsData.npmFileMap, jsonData['dist-tags'].latest);
+    const defaultFile = await chooseDefault(join(tarPath, jsonData.name), cdnjsData.npmFileMap, jsonData['dist-tags'].latest);
     if (defaultFile) {
         cdnjsData.filename = defaultFile;
     }
@@ -380,7 +380,7 @@ const github = async cdnjsData => {
     };
 
     // Get the default filename
-    const defaultFile = chooseDefault(fullPath, cdnjsData.autoupdate.fileMap, repoTags.data[0].name);
+    const defaultFile = await chooseDefault(fullPath, cdnjsData.autoupdate.fileMap, repoTags.data[0].name);
     if (defaultFile) {
         cdnjsData.filename = defaultFile;
     }
