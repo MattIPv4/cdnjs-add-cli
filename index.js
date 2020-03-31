@@ -164,14 +164,7 @@ const main = async () => {
     cdnjsData.repository = jsonData.repository || {};
 
     // Get the latest version from NPM
-    const rawVersionData = await fetch(`https://registry.npmjs.com/${jsonData.name}/${jsonData['dist-tags'].latest}`);
-    const jsonVersionData = await rawVersionData.json();
-
-    // Error if NPM errored
-    if (jsonVersionData.error) {
-        console.error(chalk.red(jsonVersionData.error));
-        return;
-    }
+    const jsonVersionData = jsonData.versions[jsonData['dist-tags'].latest];
 
     // Ack
     console.log(`Located ${jsonData.name}@${jsonData['dist-tags'].latest}...`);
