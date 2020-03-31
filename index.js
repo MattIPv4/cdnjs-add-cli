@@ -241,18 +241,18 @@ const main = async () => {
     await fs.rmdir(tarPath, { recursive: true });
 
     // Done
-    try {
-        console.log('\n\nAttempting to automatically create PR...');
-        const pr = await createPR(cdnjsData);
-        console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
-    } catch (e) {
-        console.error(chalk.red(`\n\nFailed to create automatic PR`));
-        console.error(e);
-        console.error(e.message);
-        console.error(e.status);
+    //try {
+    //    console.log('\n\nAttempting to automatically create PR...');
+    //    const pr = await createPR(cdnjsData);
+    //    console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
+    //} catch (e) {
+    //    console.error(chalk.red(`\n\nFailed to create automatic PR`));
+    //    console.error(e);
+    //    console.error(e.message);
+    //    console.error(e.status);
         console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
         console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
-    }
+    //}
 };
 
 main();
