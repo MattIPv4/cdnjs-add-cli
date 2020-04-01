@@ -223,6 +223,17 @@ const chooseDefault = async (path, fileMap, version) => {
 };
 
 /**
+ * Get the first directory in a path
+ *
+ * @param {String} path The base path to find a directory in
+ * @returns {Promise<String>} The first directory found
+ */
+const getFirstDirectory = async path =>
+    (await fs.readdir(path, { withFileTypes: true }))
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name)[0];
+
+/**
  * Generate the full cdnjsData for an NPM package
  *
  * @param {Object} cdnjsData The initial, bare-bones cdnjsData
@@ -262,8 +273,8 @@ const npm = async cdnjsData => {
     await download({
         url: jsonVersionData.dist.tarball,
         dir: tarPath,
-    });
-    const fullPath = join(tarPath, (await fs.readdir(tarPath))[0]);
+    }).catch(e => console.error(e.message, e.stack));
+    const fullPath = join(tarPath, await getFirstDirectory(tarPath));
 
     // Ack
     console.log(`Downloaded ${jsonData.name}@${jsonData['dist-tags'].latest}...\n`);
@@ -347,7 +358,7 @@ const github = async cdnjsData => {
         url: repoTags.data[0].tarball_url,
         dir: tarPath,
     });
-    const fullPath = join(tarPath, (await fs.readdir(tarPath))[0]);
+    const fullPath = join(tarPath, await getFirstDirectory(tarPath));
 
     // Ack
     console.log(`Downloaded ${repoOwner}/${repoName}@${repoTags.data[0].name}...\n`);
