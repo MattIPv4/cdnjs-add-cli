@@ -263,16 +263,17 @@ const npm = async cdnjsData => {
         url: jsonVersionData.dist.tarball,
         dir: tarPath,
     });
+    const fullPath = join(tarPath, (await fs.readdir(tarPath))[0]);
 
     // Ack
     console.log(`Downloaded ${jsonData.name}@${jsonData['dist-tags'].latest}...\n`);
 
     // Let the user explore and provide the auto-update config
     cdnjsData.npmName = jsonData.name;
-    cdnjsData.npmFileMap = await exploreAndGlob(join(tarPath, jsonData.name));
+    cdnjsData.npmFileMap = await exploreAndGlob(fullPath);
 
     // Get the default filename
-    const defaultFile = await chooseDefault(join(tarPath, jsonData.name), cdnjsData.npmFileMap, jsonData['dist-tags'].latest);
+    const defaultFile = await chooseDefault(fullPath, cdnjsData.npmFileMap, jsonData['dist-tags'].latest);
     if (defaultFile) {
         cdnjsData.filename = defaultFile;
     }
