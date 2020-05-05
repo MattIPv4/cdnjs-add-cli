@@ -110,20 +110,21 @@ const allFileMapFiles = (path, fileMap) => {
  * Creates an automatic PR for the cdnjs repo to add the new library
  *
  * @param {Object} data The library data for cdnjs
+ * @param {String} [body = ''] Additional text to add to the PR body
  * @returns {Promise<Object>} The response from GitHub (PR or error)
  */
-const createPR = async data => {
-    const name = `Add ${data.name} via single package.json w/ npm auto-update`;
+const createPR = async (data, body = '') => {
+    const name = `Add ${data.name} w/ npm auto-update`;
 
     const files = {};
-    files[`ajax/libs/${data.name}/package.json`] = `${JSON.stringify(data, null, 2)}\n`;
+    files[`packages/${data.name.slice(0, 1).toLowerCase()}/${data.name}.json`] = `${JSON.stringify(data, null, 2)}\n`;
 
     return await octokit.createPullRequest({
         owner: config.targetRepoOwner,
         repo: config.targetRepoName,
         title: name,
-        body: `Adding ${data.name} using npm auto-update from NPM package ${data.npmName}.`,
-        head: `add-${data.name}`,
+        body: `Adding ${data.name} using npm auto-update from NPM package ${data.npmName}.${body.length ? '\n\n' : ''}${body}`,
+        head: `${config.branchBase}${data.name}`,
         changes: {
             files,
             commit: name
@@ -292,7 +293,22 @@ const npm = async cdnjsData => {
     // Cleanup
     await fs.rmdir(tarPath, { recursive: true });
 
-    return cdnjsData;
+    // Get PR resolves
+    const resolves = await input(chalk.cyan.bold(`Issue this PR resolves (blank to skip): `));
+
+    // Output
+    try {
+        console.log('\n\nAttempting to automatically create PR...');
+        const pr = await createPR(cdnjsData, resolves ? `Resolves ${resolves}.` : '');
+        console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
+    } catch (e) {
+        console.error(chalk.red(`\n\nFailed to create automatic PR`));
+        console.error(e);
+        console.error(e.message);
+        console.error(e.status);
+        console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/packages: packages/${cdnjsData.name.slice(0, 1).toLowerCase()}/${cdnjsData.name}.json`));
+        console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
+    }
 };
 
 /**
@@ -320,7 +336,7 @@ const githubRepo = async () => {
  * Generate the full cdnjsData for a GitHub.com repository
  *
  * @param {Object} cdnjsData The initial, bare-bones cdnjsData
- * @returns {Promise<{Object}>|undefined} The fully-fledged cdnjsData for the GitHub.com repository
+ * @returns {Promise<void>}
  */
 const github = async cdnjsData => {
     // Get the git repo name & owner
@@ -400,7 +416,9 @@ const github = async cdnjsData => {
     // Cleanup
     await fs.rmdir(tarPath, { recursive: true });
 
-    return cdnjsData;
+    // Output
+    console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
+    console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
 };
 
 const main = async () => {
@@ -412,37 +430,17 @@ const main = async () => {
         return;
     }
 
-    // Build the base package
-    let cdnjsData = {};
-    cdnjsData.name = rawName;
-
     // Get auto-update method
     const updateMethod = await updateChoice();
     switch (updateMethod) {
         case 1:
-            cdnjsData = await npm(cdnjsData);
+            await npm({ name: rawName });
             break;
 
         case 2:
-            cdnjsData = await github(cdnjsData);
+            await github({ name: rawName });
             break;
     }
-
-    if (!cdnjsData) return;
-
-    // Done
-    //try {
-    //    console.log('\n\nAttempting to automatically create PR...');
-    //    const pr = await createPR(cdnjsData);
-    //    console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
-    //} catch (e) {
-    //    console.error(chalk.red(`\n\nFailed to create automatic PR`));
-    //    console.error(e);
-    //    console.error(e.message);
-    //    console.error(e.status);
-        console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
-        console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
-    //}
 };
 
 main();
