@@ -114,7 +114,7 @@ const allFileMapFiles = (path, fileMap) => {
  * @returns {Promise<Object>} The response from GitHub (PR or error)
  */
 const createPR = async (data, body = '') => {
-    const name = `Add ${data.name} w/ npm auto-update`;
+    const name = `Add ${data.name} w/ ${data.autoupdate.source} auto-update`;
 
     const files = {};
     files[`packages/${data.name.slice(0, 1).toLowerCase()}/${data.name}.json`] = `${JSON.stringify(data, null, 2)}\n`;
@@ -123,7 +123,7 @@ const createPR = async (data, body = '') => {
         owner: config.targetRepoOwner,
         repo: config.targetRepoName,
         title: name,
-        body: `Adding ${data.name} using npm auto-update from NPM package ${data.npmName}.${body.length ? '\n\n' : ''}${body}`,
+        body: `Adding ${data.name} using ${data.autoupdate.source} auto-update from ${data.data.autoupdate.target}.${body.length ? '\n\n' : ''}${body}`,
         head: `${config.branchBase}${data.name}`,
         changes: {
             files,
@@ -281,11 +281,14 @@ const npm = async cdnjsData => {
     console.log(`Downloaded ${jsonData.name}@${jsonData['dist-tags'].latest}...\n`);
 
     // Let the user explore and provide the auto-update config
-    cdnjsData.npmName = jsonData.name;
-    cdnjsData.npmFileMap = await exploreAndGlob(fullPath);
+    cdnjsData.autoupdate = {
+        source: 'npm',
+        target: jsonData.name,
+        fileMap: await exploreAndGlob(fullPath),
+    };
 
     // Get the default filename
-    const defaultFile = await chooseDefault(fullPath, cdnjsData.npmFileMap, jsonData['dist-tags'].latest);
+    const defaultFile = await chooseDefault(fullPath, cdnjsData.autoupdate.fileMap, jsonData['dist-tags'].latest);
     if (defaultFile) {
         cdnjsData.filename = defaultFile;
     }
@@ -293,22 +296,7 @@ const npm = async cdnjsData => {
     // Cleanup
     await fs.rmdir(tarPath, { recursive: true });
 
-    // Get PR resolves
-    const resolves = await input(chalk.cyan.bold(`Issue this PR resolves (blank to skip): `));
-
-    // Output
-    try {
-        console.log('\n\nAttempting to automatically create PR...');
-        const pr = await createPR(cdnjsData, resolves ? `Resolves ${resolves}.` : '');
-        console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
-    } catch (e) {
-        console.error(chalk.red(`\n\nFailed to create automatic PR`));
-        console.error(e);
-        console.error(e.message);
-        console.error(e.status);
-        console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/packages: packages/${cdnjsData.name.slice(0, 1).toLowerCase()}/${cdnjsData.name}.json`));
-        console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
-    }
+    return cdnjsData;
 };
 
 /**
@@ -354,12 +342,23 @@ const github = async cdnjsData => {
         return;
     }
 
+    // Get general repo data
+    const repoData = await octokit.repos.get({
+        owner: repoOwner,
+        repo: repoName,
+    });
+    const repoTopics = await octokit.repos.getAllTopics({
+        owner: repoOwner,
+        repo: repoName,
+    });
+
     // Store basic info
-    cdnjsData.description = ''; // Get repo desc?
-    cdnjsData.keywords = []; // Get repo topics?
+    cdnjsData.description = repoData && repoData.data && repoData.data.description;
+    cdnjsData.keywords = repoTopics && repoTopics.data && repoTopics.data.names;
     cdnjsData.author = repoOwner;
-    cdnjsData.license = ''; // Get repo license?
-    cdnjsData.homepage = `https://github.com/${repoOwner}/${repoName}`; // Get repo website?
+    cdnjsData.license = repoData && repoData.data && repoData.data.license && repoData.data.license.spdx_id;
+    cdnjsData.homepage = (repoData && repoData.data && repoData.data.homepage)
+        || `https://github.com/${repoOwner}/${repoName}`;
     cdnjsData.repository = {
         type: 'git',
         url: `git://github.com/${repoOwner}/${repoName}.git`,
@@ -416,9 +415,7 @@ const github = async cdnjsData => {
     // Cleanup
     await fs.rmdir(tarPath, { recursive: true });
 
-    // Output
-    console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/cdnjs: ajax/libs/${cdnjsData.name}/package.json`));
-    console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
+    return cdnjsData;
 };
 
 const main = async () => {
@@ -432,14 +429,35 @@ const main = async () => {
 
     // Get auto-update method
     const updateMethod = await updateChoice();
+    let cdnjsData;
     switch (updateMethod) {
         case 1:
-            await npm({ name: rawName });
+            cdnjsData = await npm({ name: rawName });
             break;
 
         case 2:
-            await github({ name: rawName });
+            cdnjsData = await github({ name: rawName });
             break;
+    }
+
+    // Final steps
+    if (!cdnjsData) return;
+
+    // Get PR resolves
+    const resolves = await input(chalk.cyan.bold(`Issue this PR resolves (blank to skip): `));
+
+    // Output
+    try {
+        console.log('\n\nAttempting to automatically create PR...');
+        const pr = await createPR(cdnjsData, resolves ? `Resolves ${resolves}.` : '');
+        console.log(chalk.green.bold(`\n\nCreated automatic PR: ${pr.data.html_url}`));
+    } catch (e) {
+        console.error(chalk.red(`\n\nFailed to create automatic PR`));
+        console.error(e);
+        console.error(e.message);
+        console.error(e.status);
+        console.log(chalk.green.bold(`\n\nCreate new file on cdnjs/packages: packages/${cdnjsData.name.slice(0, 1).toLowerCase()}/${cdnjsData.name}.json`));
+        console.log(chalk.green(`${JSON.stringify(cdnjsData, null, 2)}`));
     }
 };
 
