@@ -123,7 +123,7 @@ const createPR = async (data, body = '') => {
         owner: config.targetRepoOwner,
         repo: config.targetRepoName,
         title: name,
-        body: `Adding ${data.name} using ${data.autoupdate.source} auto-update from ${data.data.autoupdate.target}.${body.length ? '\n\n' : ''}${body}`,
+        body: `Adding ${data.name} using ${data.autoupdate.source} auto-update from ${data.autoupdate.target}.${body.length ? '\n\n' : ''}${body}`,
         head: `${config.branchBase}${data.name}`,
         changes: {
             files,
@@ -238,7 +238,7 @@ const getFirstDirectory = async path =>
  * Generate the full cdnjsData for an NPM package
  *
  * @param {Object} cdnjsData The initial, bare-bones cdnjsData
- * @returns {Promise<{Object}>|undefined} The fully-fledged cdnjsData for the NPM package
+ * @returns {Promise<Object>|Promise<void>} The fully-fledged cdnjsData for the NPM package
  */
 const npm = async cdnjsData => {
     // Get the NPM package name to use
@@ -324,7 +324,7 @@ const githubRepo = async () => {
  * Generate the full cdnjsData for a GitHub.com repository
  *
  * @param {Object} cdnjsData The initial, bare-bones cdnjsData
- * @returns {Promise<void>}
+ * @returns {Promise<Object>|Promise<void>} The fully-fledged cdnjsData for the GitHub repository
  */
 const github = async cdnjsData => {
     // Get the git repo name & owner
