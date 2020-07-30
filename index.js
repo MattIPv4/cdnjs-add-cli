@@ -235,6 +235,33 @@ const getFirstDirectory = async path =>
         .map(dirent => dirent.name)[0];
 
 /**
+ * Transform a set of author strings/objects into consistent author objects
+ *
+ * @param {Array<String|Object>} authors The unclean authors
+ * @return {{name: *, email: *, url: *}[]} The cleaned, consistent authors
+ */
+const transformAuthors = authors => authors.filter(x => !!x).map(author => {
+    // Get the name, email & url
+    let name = typeof author === 'string' ? author : author.name;
+    const email = author.email || name.match(/^.*?((?: <.+>)?)(?: \(.+\))?$/)[1].slice(2).slice(0, -1);
+    const url = author.url || author.homepage || name.match(/^.*?((?: \(.+\))?)(?: <.+>)?$/)[1].slice(2).slice(0, -1);
+    name = name.match(/^(.*?)(?:(?: \(.+\))|(?: <.+>)){0,2}$/)[1];
+
+    // Create the obj and clean
+    const data = {
+        name,
+        email,
+        url,
+    };
+    for (let key in data) {
+        if (!data[key]) {
+            delete data[key];
+        }
+    }
+    return data;
+});
+
+/**
  * Generate the full cdnjsData for an NPM package
  *
  * @param {Object} cdnjsData The initial, bare-bones cdnjsData
@@ -255,19 +282,27 @@ const npm = async cdnjsData => {
         return;
     }
 
-    // Store basic info
-    cdnjsData.description = jsonData.description || '';
-    cdnjsData.keywords = jsonData.keywords || [];
-    cdnjsData.author = jsonData.author || '';
-    cdnjsData.license = jsonData.license || '';
-    cdnjsData.homepage = jsonData.homepage || '';
-    cdnjsData.repository = jsonData.repository || {};
-
     // Get the latest version from NPM
     const jsonVersionData = jsonData.versions[jsonData['dist-tags'].latest];
 
     // Ack
     console.log(`Located ${jsonData.name}@${jsonData['dist-tags'].latest}...`);
+
+    // Merge in the version
+    const jsonFullData = {
+        ...jsonVersionData,
+        ...jsonData
+    };
+
+    // Store basic info
+    cdnjsData.description = jsonFullData.description || '';
+    cdnjsData.keywords = jsonFullData.keywords || [];
+    cdnjsData.license = jsonFullData.license || '';
+    cdnjsData.homepage = jsonFullData.homepage || '';
+    cdnjsData.repository = jsonFullData.repository || {};
+
+    // Authors magic
+    cdnjsData.authors = transformAuthors([jsonFullData.author, ...(jsonFullData.authors || [])]);
 
     // Download tarball
     const tarPath = join(__dirname, 'temp', jsonData.name, jsonData['dist-tags'].latest);
@@ -398,6 +433,10 @@ const github = async cdnjsData => {
         cdnjsData.license = jsonFile.license || cdnjsData.license;
         cdnjsData.homepage = jsonFile.homepage || cdnjsData.homepage;
     }
+
+    // Authors magic
+    cdnjsData.authors = transformAuthors([cdnjsData.author, ...(jsonFile.authors || [])]);
+    delete cdnjsData.author;
 
     // Let the user explore and provide the auto-update config
     cdnjsData.autoupdate = {
