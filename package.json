@@ -12,7 +12,7 @@
     "download-tarball": "^2.0.0",
     "git-url-parse": "^11.1.2",
     "glob": "^7.1.6",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "octokit-create-pull-request": "^1.4.2"
   }
 }
