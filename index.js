@@ -435,7 +435,7 @@ const github = async cdnjsData => {
     }
 
     // Authors magic
-    cdnjsData.authors = transformAuthors([cdnjsData.author, ...(jsonFile.authors || [])]);
+    cdnjsData.authors = transformAuthors([cdnjsData.author, ...((jsonFile && jsonFile.authors) || [])]);
     delete cdnjsData.author;
 
     // Let the user explore and provide the auto-update config
