@@ -41,8 +41,12 @@ const explore = async path => {
     if (pathInput) {
         // List files
         try {
-            const files = await fs.readdir(join(path, pathInput));
-            console.log(files.join('\t'));
+            if (await fs.lstat(join(path, pathInput)).then(stat => stat.isFile())) {
+                console.log(await fs.readFile(join(path, pathInput), 'utf8'));
+            } else {
+                const files = await fs.readdir(join(path, pathInput));
+                console.log(files.join('\t'));
+            }
         } catch (e) {
             console.error(chalk.red(e.message));
         }
