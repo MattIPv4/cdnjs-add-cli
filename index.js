@@ -306,7 +306,7 @@ const npm = async cdnjsData => {
     cdnjsData.repository = jsonFullData.repository || {};
 
     // Authors magic
-    cdnjsData.authors = transformAuthors([jsonFullData.author, ...(jsonFullData.authors || [])]);
+    cdnjsData.authors = transformAuthors([jsonFullData.author, ...(Array.isArray(jsonFullData.authors) ? jsonFullData.authors : [jsonFullData.authors])]);
 
     // Download tarball
     const tarPath = join(__dirname, 'temp', jsonData.name, jsonData['dist-tags'].latest);
