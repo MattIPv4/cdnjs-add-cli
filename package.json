@@ -7,7 +7,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@octokit/rest": "^17.1.4",
+    "@octokit/rest": "^19.0.13",
     "chalk": "^3.0.0",
     "download-tarball": "^2.0.0",
     "git-url-parse": "^13.1.0",
